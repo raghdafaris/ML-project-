@@ -1,0 +1,108 @@
+---
+title: "Report on Predicting Exercise Performance with Wearable Device Data"
+author: "Raghda"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Background
+The advent of wearable devices such as the Jawbone Up, Nike FuelBand, and Fitbit has enabled the collection of extensive personal activity data at a relatively low cost. These devices contribute to the quantified self movement, where enthusiasts regularly measure various aspects of their activities to improve health, identify behavior patterns, or simply due to their interest in technology. While people often quantify the amount of a particular activity, they seldom quantify how well they perform it. This project aims to bridge this gap by using data from accelerometers on the belt, forearm, arm, and dumbbell of six participants who performed barbell lifts correctly and incorrectly in five different ways. The goal is to predict the manner of exercise, classified by the "classe" variable in the training dataset.
+
+## Load necessary packages
+
+```{r, echo=TRUE, warning=FALSE,message=FALSE}
+library(caret)
+library(randomForest)
+library(rpart)
+library(RColorBrewer)
+library(rattle)
+```
+
+## Data Preprocessing
+```{r, echo=FALSE, results='hide'}
+trUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+teUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+```
+### Loading the Data:
+The training and testing datasets were loaded into R, with missing values represented by "NA", "#DIV/0!", and empty strings handled appropriately.
+
+```{r, echo=TRUE, results='hide'}
+training <- read.csv(url(trUrl), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(teUrl), na.strings=c("NA","#DIV/0!",""))
+
+```
+
+### Cleaning the Data:
+Columns with missing values and irrelevant columns (such as ID columns) were removed from both datasets. This resulted in a clean training and testing dataset.
+
+```{r, echo=TRUE, results='hide' }
+training <- training[,colSums(is.na(training)) == 0]
+testing <- testing[,colSums(is.na(testing)) == 0]
+trainclean <- training[,-c(1:7)]
+testclean <- testing[,-c(1:7)]
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE, results='hide'}
+trainclean$classe <- as.factor(trainclean$classe)
+```
+
+### Splitting the Data:
+The clean training data was split into 70% training and 30% validation sets to enable model evaluation.
+
+```{r, echo=TRUE, results='hide'}
+set.seed(1234)
+inTrain <- createDataPartition(y = trainclean$classe, p = 0.70, list = FALSE)
+mytrain <- trainclean[inTrain, ]
+valset <- trainclean[-inTrain, ]
+```
+
+## Model Building
+
+### Random Forest Model:
+A Random Forest model was trained on the training set using 100 trees. The importance of each variable was also analyzed.
+
+```{r, echo=TRUE, results='hide'}
+model <- randomForest(classe ~ ., data = mytrain, ntree = 100, importance = TRUE)
+plot(model)
+varImpPlot(model)
+```
+
+## Model Evaluation
+### Predictions and Confusion Matrix:
+Predictions were made on the validation set, and a confusion matrix was calculated to evaluate the model's performance.
+
+```{r, echo=TRUE, results='hide'}
+predictions <- predict(model, valset)
+predictions <- factor(predictions, levels = levels(mytrain$classe))
+valset$classe <- factor(valset$classe, levels = levels(mytrain$classe))
+```
+
+```{r, echo=TRUE}
+confMatrix <- confusionMatrix(predictions, valset$classe)
+print(confMatrix)
+```
+
+### Accuracy and Visualization:
+The model's accuracy was plotted, showing the confusion matrix with class-wise accuracy.
+
+```{r, echo=TRUE}
+plot(confMatrix$table, col = confMatrix$byClass, main = paste("Random Forest Confusion Matrix: Accuracy =", round(confMatrix$overall['Accuracy'], 4)))
+```
+
+## Final Prediction
+The trained Random Forest model was used to make predictions on the cleaned test dataset.
+
+```{r, echo=TRUE}
+finalpredict <- predict(model, testclean)
+print(finalpredict)
+```
+
+## Results
+The Random Forest model demonstrated high accuracy in predicting the manner in which the exercises were performed, as indicated by the confusion matrix on the validation set. The final predictions on the test set provided the manner of exercise for 20 different test cases.
+
+## Conclusion
+This project successfully applied machine learning techniques to predict the quality of barbell lifts using data from wearable devices. The Random Forest model proved to be an effective method, with its robustness and ability to handle numerous predictor variables. Future work could explore the integration of additional data sources and the application of other machine learning algorithms to further improve prediction accuracy.
